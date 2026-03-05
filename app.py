@@ -21,4 +21,5 @@ def upload():
     return jsonify({"url": f"/static/videos/{filename}", "name": filename})
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    # app.run(debug=True, port=5000) only use locally, without docker
+    app.run(host="0.0.0.0", port=5000, debug=False)
