@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BPM VIDEO CTRL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #080808;
+    --surface: #111111;
+    --border:  #222222;
+    --accent:  #ff2d55;
+    --accent2: #00e5ff;
+    --dim:     #444;
+    --text:    #f0f0f0;
+    --mono:    'JetBrains Mono', monospace;
+    --disp:    'Bebas Neue', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text); font-family: var(--mono);
+    height: 100vh; display: grid; grid-template-rows: 57px 1fr 52px; overflow: hidden;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .logo { font-family: var(--disp); font-size: 1.9rem; letter-spacing: .1em; }
+  .logo span { color: var(--accent); }
+  .hbtns { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    font-family: var(--mono); font-size: .68rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; padding: 7px 16px;
+    border: 1px solid var(--border); background: transparent; color: var(--text);
+    cursor: pointer; transition: all .15s; outline: none;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.on    { background: var(--accent); border-color: var(--accent); color: #000; }
+  .btn.c2    { border-color: var(--accent2); color: var(--accent2); }
+  .btn.c2:hover, .btn.c2.on { background: var(--accent2); border-color: var(--accent2); color: #000; }
+  .btn.warn  { border-color: #ff9500; color: #ff9500; }
+  .btn.warn.on { background: #ff9500; color: #000; }
+  main { display: grid; grid-template-columns: 1fr 300px; overflow: hidden; }
+  .video-wrap {
+    position: relative; background: #000;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  #videoEl { width: 100%; height: 100%; object-fit: contain; }
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; transition: opacity .3s;
+  }
+  .overlay.gone { opacity: 0; pointer-events: none; }
+  .overlay-icon { font-size: 2.5rem; opacity: .2; }
+  .overlay-txt  { font-family: var(--disp); font-size: 1.3rem; letter-spacing: .14em; color: var(--dim); }
+  .overlay-btn  {
+    font-family: var(--mono); font-size: .67rem; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase; padding: 9px 22px;
+    border: 1px solid var(--dim); background: transparent; color: var(--dim);
+    cursor: pointer; transition: all .15s;
+  }
+  .overlay-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .speed-badge {
+    position: absolute; top: 10px; right: 10px; font-family: var(--disp);
+    font-size: 1rem; letter-spacing: .06em; padding: 3px 10px;
+    background: rgba(0,0,0,.75); border: 1px solid var(--accent); color: var(--accent);
+    pointer-events: none; opacity: 0; transition: opacity .3s;
+  }
+  .speed-badge.show { opacity: 1; }
+  body.drag-over .video-wrap { outline: 2px dashed var(--accent2); }
+  .panel {
+    border-left: 1px solid var(--border); background: var(--surface);
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .psec { padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .plbl { font-size: .59rem; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); margin-bottom: 12px; }
+  .bpm-num {
+    font-family: var(--disp); font-size: 5rem; line-height: 1; color: var(--dim);
+    text-align: center; letter-spacing: -.02em; transition: color .2s;
+  }
+  .bpm-num.live { color: var(--accent); }
+  .bpm-sub { font-size: .6rem; letter-spacing: .18em; color: var(--dim); text-align: center; margin-top: 2px; }
+  .beat-dot {
+    display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--accent); margin-left: 6px; vertical-align: middle; opacity: 0; transition: opacity .05s;
+  }
+  .beat-dot.flash { opacity: 1; }
+  #waveCanvas { width: 100%; height: 52px; display: block; margin-top: 10px; }
+  .spd-num { font-family: var(--disp); font-size: 2.6rem; color: var(--accent2); text-align: center; line-height: 1; }
+  .spd-sub { font-size: .6rem; letter-spacing: .18em; color: var(--dim); text-align: center; margin-top: 2px; }
+  .bar-track { margin-top: 12px; height: 5px; background: var(--border); overflow: hidden; }
+  .bar-fill  { height: 100%; background: linear-gradient(90deg,var(--accent2),var(--accent)); width: 0%; transition: width .35s ease; }
+  .srow { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+  .slbl { font-size: .58rem; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); width: 76px; flex-shrink: 0; }
+  input[type=range] { -webkit-appearance: none; flex: 1; height: 3px; background: var(--border); outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .sval { font-size: .62rem; color: var(--text); width: 34px; text-align: right; flex-shrink: 0; }
+  .logbox { font-size: .58rem; color: var(--dim); line-height: 1.9; max-height: 100px; overflow-y: auto; scrollbar-width: thin; }
+  .logbox .e  { display: flex; gap: 7px; }
+  .logbox .ts { color: #2a2a2a; flex-shrink: 0; }
+  .logbox .ok { color: var(--accent2); }
+  .logbox .er { color: var(--accent); }
+  footer {
+    border-top: 1px solid var(--border); background: var(--surface);
+    display: flex; align-items: center; padding: 0 12px;
+  }
+  .tbtn {
+    font-size: 1rem; width: 38px; height: 38px; border: none;
+    background: transparent; color: var(--dim); cursor: pointer; transition: color .15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tbtn:hover { color: var(--text); }
+  .tbtn.on { color: var(--accent); }
+  .fname {
+    font-size: .6rem; letter-spacing: .07em; color: var(--dim);
+    max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0 8px;
+  }
+  .prog-wrap { flex: 1; height: 4px; background: var(--border); cursor: pointer; position: relative; margin: 0 12px; }
+  #progFill { height: 100%; background: var(--accent); width: 0%; pointer-events: none; }
+  .tlbl { font-size: .6rem; color: var(--dim); min-width: 84px; text-align: right; }
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+  @keyframes pop { 0%,100%{transform:scale(1)}50%{transform:scale(1.04)} }
+  .pop { animation: pop .1s ease; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">BPM<span>.</span>CTRL</div>
+  <div class="hbtns">
+    <span id="dot" style="width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block;transition:background .3s"></span>
+    <button class="btn" id="micBtn" onclick="toggleMic()">🎤 Start listening</button>
+    <button class="btn warn" id="muteBtn" onclick="toggleMute()">🔊 Mute video</button>
+    <label class="btn" style="cursor:pointer">
+      📂 Open video
+      <input type="file" accept="video/*" style="display:none" onchange="loadFile(this)">
+    </label>
+  </div>
+</header>
+
+<main>
+  <div class="video-wrap" id="vwrap">
+    <video id="videoEl" playsinline loop></video>
+    <div class="overlay" id="overlay">
+      <div class="overlay-icon">▶</div>
+      <div class="overlay-txt">DROP VIDEO HERE</div>
+      <label class="overlay-btn">
+        or click to browse
+        <input type="file" accept="video/*" style="display:none" onchange="loadFile(this)">
+      </label>
+    </div>
+    <div class="speed-badge" id="sbadge">1.00×</div>
+  </div>
+
+  <div class="panel">
+    <div class="psec">
+      <div class="plbl">Detected BPM <span class="beat-dot" id="bdot"></span></div>
+      <div class="bpm-num" id="bpmNum">--</div>
+      <div class="bpm-sub">BEATS PER MINUTE</div>
+      <canvas id="waveCanvas"></canvas>
+    </div>
+    <div class="psec">
+      <div class="plbl">Video Speed</div>
+      <div class="spd-num" id="spdNum">1.00×</div>
+      <div class="spd-sub">PLAYBACK RATE</div>
+      <div class="bar-track"><div class="bar-fill" id="barFill"></div></div>
+    </div>
+    <div class="psec">
+      <div class="plbl">Settings</div>
+      <div class="srow">
+        <span class="slbl">Base BPM</span>
+        <input type="range" min="40" max="220" value="90" oninput="setBaseBpm(+this.value)">
+        <span class="sval" id="vBaseBpm">90</span>
+      </div>
+      <div class="srow">
+        <span class="slbl">Smoothing</span>
+        <input type="range" min="2" max="20" value="10" oninput="setSmooth(+this.value)">
+        <span class="sval" id="vSmooth">10</span>
+      </div>
+      <div class="srow">
+        <span class="slbl">Max speed</span>
+        <input type="range" min="1" max="8" step="0.5" value="2" oninput="setMaxSpd(+this.value)">
+        <span class="sval" id="vMaxSpd">2×</span>
+      </div>
+
+    </div>
+    <div class="psec" style="flex:1">
+      <div class="plbl">Log</div>
+      <div class="logbox" id="logbox"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <button class="tbtn" id="playBtn" onclick="togglePlay()">▶</button>
+  <button class="tbtn" onclick="doRestart()" title="Restart">↩</button>
+  <span class="fname" id="fname">no file loaded</span>
+  <div class="prog-wrap" id="progWrap" onclick="seek(event)">
+    <div id="progFill"></div>
+  </div>
+  <span class="tlbl" id="tlbl">0:00 / 0:00</span>
+</footer>
+
+<script>
+const vid     = document.getElementById('videoEl');
+const bpmNum  = document.getElementById('bpmNum');
+const spdNum  = document.getElementById('spdNum');
+const sbadge  = document.getElementById('sbadge');
+const barFill = document.getElementById('barFill');
+const bdot    = document.getElementById('bdot');
+const dot     = document.getElementById('dot');
+const micBtn  = document.getElementById('micBtn');
+const muteBtn = document.getElementById('muteBtn');
+const overlay = document.getElementById('overlay');
+const wc      = document.getElementById('waveCanvas');
+const wx      = wc.getContext('2d');
+const playBtn = document.getElementById('playBtn');
+const progFill= document.getElementById('progFill');
+const tlbl    = document.getElementById('tlbl');
+
+let baseBpm   = 90, maxSpd = 2, smoothN = 10, sens = 5;
+let bpmBuf    = [];
+let listening = false, muted = false;
+let audioCtx  = null, analyser = null, micStream = null;
+let wafId     = null;
+
+function lg(msg, cls='') {
+  const box = document.getElementById('logbox');
+  const ts  = new Date().toLocaleTimeString('en',{hour12:false});
+  const d   = document.createElement('div');
+  d.className = 'e';
+  d.innerHTML = `<span class="ts">${ts}</span><span class="${cls}">${msg}</span>`;
+  box.prepend(d);
+  while (box.children.length > 50) box.lastChild.remove();
+}
+
+function loadFile(inp) {
+  const f = inp.files[0];
+  if (!f) return;
+  vid.src = URL.createObjectURL(f);
+  vid.load();
+  overlay.classList.add('gone');
+  sbadge.classList.add('show');
+  document.getElementById('fname').textContent = f.name;
+  lg('Loaded: ' + f.name, 'ok');
+  inp.value = '';
+}
+
+const vwrap = document.getElementById('vwrap');
+vwrap.addEventListener('dragover',  e => { e.preventDefault(); document.body.classList.add('drag-over'); });
+vwrap.addEventListener('dragleave', ()=> document.body.classList.remove('drag-over'));
+vwrap.addEventListener('drop', e => {
+  e.preventDefault(); document.body.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('video/')) {
+    vid.src = URL.createObjectURL(f); vid.load();
+    overlay.classList.add('gone'); sbadge.classList.add('show');
+    document.getElementById('fname').textContent = f.name;
+    lg('Dropped: ' + f.name, 'ok');
+  }
+});
+
+function togglePlay() {
+  if (!vid.src) { lg('No video loaded','er'); return; }
+  if (vid.paused) {
+    vid.play().then(()=>{ playBtn.textContent='⏸'; playBtn.classList.add('on'); })
+              .catch(e=> lg('Play error: '+e.message,'er'));
+  } else {
+    vid.pause(); playBtn.textContent='▶'; playBtn.classList.remove('on');
+  }
+}
+function doRestart() {
+  if (!vid.src) return;
+  vid.currentTime = 0; vid.play();
+  playBtn.textContent='⏸'; playBtn.classList.add('on');
+}
+function toggleMute() {
+  muted = !muted; vid.muted = muted;
+  if (muted) {
+    muteBtn.textContent='🔇 Unmute video'; muteBtn.classList.add('on');
+    lg('Video muted — good for avoiding mic feedback');
+  } else {
+    muteBtn.textContent='🔊 Mute video'; muteBtn.classList.remove('on');
+    lg('Video unmuted');
+  }
+}
+vid.addEventListener('timeupdate', ()=>{
+  if (!vid.duration) return;
+  progFill.style.width = (vid.currentTime/vid.duration*100)+'%';
+  tlbl.textContent = fmt(vid.currentTime)+' / '+fmt(vid.duration);
+});
+// video loops — no ended handler needed
+function seek(e) {
+  if (!vid.duration) return;
+  const r = document.getElementById('progWrap').getBoundingClientRect();
+  vid.currentTime = ((e.clientX-r.left)/r.width)*vid.duration;
+}
+function fmt(s) { const m=Math.floor(s/60),sec=Math.floor(s%60); return m+':'+String(sec).padStart(2,'0'); }
+
+async function toggleMic() { listening ? stopMic() : await startMic(); }
+
+// ── librosa-style autocorrelation BPM detector ────────────────────────────
+// Mirrors what librosa.beat.beat_track does:
+//  1. Collect ~1s of audio into a ScriptProcessor buffer
+//  2. Compute per-frame onset strength (spectral flux on mel-like bands)
+//  3. Build autocorrelation of the onset envelope
+//  4. Find the lag with highest correlation in the 40-220 BPM range
+//  5. Smooth result over several windows
+
+const SR         = 22050;   // sample rate we'll request
+const HOP        = 512;     // hop size — onset env frame every ~23ms
+const WIN_FRAMES = 43;      // ~1 second of onset frames to analyse
+const MEL_BANDS  = 40;      // number of frequency bands for onset strength
+
+let pollTimer   = null;
+let onsetBuf    = [];
+let prevMag     = null;
+let analyserFFT = null;
+let bdotTimer   = null;
+let frameCount  = 0;
+
+async function startMic() {
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      video: false
+    });
+  } catch(e) { lg('Mic denied: '+e.message,'er'); return; }
+
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if (audioCtx.state==='suspended') await audioCtx.resume();
+
+  // Waveform display analyser
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+  analyser.smoothingTimeConstant = 0.8;
+
+  // High-res FFT for onset strength — no smoothing so we see raw flux
+  analyserFFT = audioCtx.createAnalyser();
+  analyserFFT.fftSize = 2048;
+  analyserFFT.smoothingTimeConstant = 0.0;
+
+  const src = audioCtx.createMediaStreamSource(micStream);
+  src.connect(analyser);
+  src.connect(analyserFFT);
+  // Do NOT connect to destination — avoids mic→speaker feedback
+
+  onsetBuf = []; prevMag = null; bpmBuf = []; frameCount = 0;
+  listening = true;
+  micBtn.textContent='⏹ Stop listening'; micBtn.classList.add('on');
+  dot.style.background='var(--accent)';
+  bpmNum.classList.add('live'); bpmNum.textContent='---';
+  lg('Listening — autocorrelation BPM detector active','ok');
+  lg('Tip: mute video to prevent feedback loop');
+
+  // Poll every 23ms (~HOP/SR seconds) to compute onset strength frames
+  pollTimer = setInterval(onsetFrame, 23);
+  drawWave();
+}
+
+function stopMic() {
+  listening = false;
+  clearInterval(pollTimer); pollTimer = null;
+  cancelAnimationFrame(wafId);
+  if (micStream)  micStream.getTracks().forEach(t=>t.stop());
+  if (audioCtx)   { audioCtx.close(); audioCtx=null; }
+  analyser=null; analyserFFT=null; micStream=null;
+  prevMag=null; onsetBuf=[];
+  micBtn.textContent='🎤 Start listening'; micBtn.classList.remove('on');
+  dot.style.background='var(--dim)';
+  bpmNum.classList.remove('live'); bpmNum.textContent='--';
+  spdNum.textContent='1.00×'; sbadge.textContent='1.00×'; barFill.style.width='0%';
+  lg('Mic stopped');
+}
+
+// Called every ~23ms — compute one onset strength frame
+function onsetFrame() {
+  if (!analyserFFT) return;
+
+  const freqBuf = new Float32Array(analyserFFT.frequencyBinCount); // 1024 bins
+  analyserFFT.getFloatFrequencyData(freqBuf); // dB values
+
+  // Convert dB to linear magnitude (clamp -Infinity)
+  const mag = freqBuf.map(db => isFinite(db) ? Math.pow(10, db / 20) : 0);
+
+  if (prevMag === null) { prevMag = mag; return; }
+
+  // Spectral flux across mel-spaced bands
+  const numBins = mag.length;
+  const SR_CTX  = audioCtx ? audioCtx.sampleRate : 44100;
+  let flux = 0;
+  for (let b = 0; b < MEL_BANDS; b++) {
+    const loHz  = 20 * Math.pow(8000/20, b/MEL_BANDS);
+    const hiHz  = 20 * Math.pow(8000/20, (b+1)/MEL_BANDS);
+    const loBin = Math.floor(loHz / (SR_CTX/2) * numBins);
+    const hiBin = Math.ceil( hiHz / (SR_CTX/2) * numBins);
+    let curr=0, prev=0;
+    for (let i=loBin; i<Math.min(hiBin,numBins); i++) {
+      curr += mag[i];
+      prev += prevMag[i];
+    }
+    const diff = curr - prev;
+    if (diff > 0) flux += diff;
+  }
+
+  prevMag = mag;
+  onsetBuf.push(flux);
+  frameCount++;
+
+  // Keep rolling buffer of ~4 seconds
+  if (onsetBuf.length > WIN_FRAMES * 4) onsetBuf.shift();
+
+  // Re-estimate BPM once we have enough frames, then every ~0.5s
+  const halfWin = Math.floor(WIN_FRAMES / 2);
+  if (onsetBuf.length >= WIN_FRAMES && frameCount % halfWin === 0) {
+    const bpm = autocorrBPM(onsetBuf.slice(-WIN_FRAMES));
+    if (bpm > 0) {
+      flashBeat();
+      applyBpm(bpm);
+    }
+  }
+}
+
+// Autocorrelation tempo estimation — same core idea as librosa
+function autocorrBPM(onset) {
+  const n = onset.length;
+
+  // Mean-subtract
+  const mean = onset.reduce((a,b)=>a+b,0)/n;
+  const x = onset.map(v=>v-mean);
+
+  // Compute autocorrelation for lags in the 40-220 BPM range
+  // lag in frames: BPM = 60 / (lag * HOP/SR)
+  const lagMin = Math.floor(60 / 220 * SR / HOP); // ~6 frames at 220 BPM
+  const lagMax = Math.ceil( 60 /  40 * SR / HOP); // ~29 frames at 40 BPM
+
+  let bestLag = -1, bestAC = -Infinity;
+
+  for (let lag = lagMin; lag <= Math.min(lagMax, n-1); lag++) {
+    let ac = 0;
+    for (let i = 0; i < n - lag; i++) ac += x[i] * x[i+lag];
+    // Normalise by number of terms
+    ac /= (n - lag);
+    if (ac > bestAC) { bestAC = ac; bestLag = lag; }
+  }
+
+  if (bestLag <= 0) return 0;
+  return 60 / (bestLag * HOP / SR);
+}
+
+function drawWave() {
+  if (!listening) return;
+  wafId = requestAnimationFrame(drawWave);
+  const W=wc.width=wc.offsetWidth, H=wc.height=wc.offsetHeight;
+  const buf=new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(buf);
+  wx.clearRect(0,0,W,H);
+  wx.strokeStyle='#ff2d5566'; wx.lineWidth=1.5; wx.beginPath();
+  const step=W/buf.length;
+  for(let i=0;i<buf.length;i++){
+    const y=(buf[i]/256)*H;
+    i===0 ? wx.moveTo(0,y) : wx.lineTo(i*step,y);
+  }
+  wx.stroke();
+}
+
+function flashBeat() {
+  bdot.classList.add('flash');
+  clearTimeout(bdotTimer);
+  bdotTimer=setTimeout(()=>bdot.classList.remove('flash'),200);
+  bpmNum.classList.add('pop');
+  setTimeout(()=>bpmNum.classList.remove('pop'),120);
+}
+
+function applyBpm(raw) {
+  bpmBuf.push(raw);
+  if(bpmBuf.length>smoothN) bpmBuf.shift();
+  const bpm = bpmBuf.reduce((a,b)=>a+b,0)/bpmBuf.length;
+  bpmNum.textContent = Math.round(bpm);
+
+  // Speed: 1× at baseBpm, gentle ±50% sensitivity
+  const ratio  = bpm / baseBpm;
+  const factor = Math.max(0.25, Math.min(1 + (ratio-1)*0.5, maxSpd));
+
+  vid.playbackRate = factor;
+  spdNum.textContent = factor.toFixed(2)+'×';
+  sbadge.textContent = factor.toFixed(2)+'×';
+  barFill.style.width = Math.min((factor/maxSpd)*100,100)+'%';
+}
+
+function setBaseBpm(v){ baseBpm=v; document.getElementById('vBaseBpm').textContent=v; }
+function setSmooth(v) { smoothN=v; document.getElementById('vSmooth').textContent=v; bpmBuf=[]; }
+function setMaxSpd(v) { maxSpd=v;  document.getElementById('vMaxSpd').textContent=v+'×'; }
+
+lg('App ready — load a video, then start listening','ok');
+</script>
+</body>
+</html>
